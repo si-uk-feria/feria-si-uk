@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Feria SI-UK - Registro de Mesa</title>
+<style>
+  :root {
+    --navy: #12253F;
+    --coral: #E63950;
+    --lime: #C9F27D;
+    --bg: #F6F7F5;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--navy);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    background: var(--navy);
+    padding: 18px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  header .dot { color: var(--coral); font-size: 22px; font-weight: 800; }
+  header .word { color: #fff; font-size: 19px; font-weight: 700; letter-spacing: 0.2px; }
+  main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 28px 16px 60px;
+    max-width: 560px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  .card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 24px 20px;
+    width: 100%;
+    box-shadow: 0 2px 12px rgba(18,37,63,0.08);
+    text-align: center;
+  }
+  h1 { font-size: 20px; margin: 0 0 6px; }
+  p.sub { color: #5a6472; font-size: 14px; margin: 0 0 20px; line-height: 1.5; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+    margin-top: 8px;
+  }
+  .mesa-btn {
+    background: var(--lime);
+    color: var(--navy);
+    border: none;
+    border-radius: 10px;
+    padding: 14px 4px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    transition: transform 0.08s ease, opacity 0.15s ease;
+  }
+  .mesa-btn:active { transform: scale(0.94); }
+  .mesa-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .status {
+    margin-top: 22px;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .status.success { color: #1a7a3c; }
+  .status.error { color: var(--coral); }
+  .spinner {
+    width: 34px; height: 34px;
+    border: 4px solid #e2e6ea;
+    border-top-color: var(--coral);
+    border-radius: 50%;
+    margin: 30px auto;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .retry-btn {
+    margin-top: 16px;
+    background: var(--coral);
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    padding: 10px 22px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="dot">✳</span>
+  <span class="word">SI-UK · Feria de Estudiantes</span>
+</header>
+
+<main>
+  <div class="card" id="card">
+    <div class="spinner" id="spinner"></div>
+  </div>
+</main>
+
+<script>
+  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwPPUmwk1lUIBIjdcv0Ka1NuQiuS7DYoCe0k526wtm4qlReinw0-RCLmo3RLkSMPNKK/exec';
+
+  const card = document.getElementById('card');
+  const params = new URLSearchParams(window.location.search);
+  const studentId = params.get('id');
+
+  function render(html) { card.innerHTML = html; }
+
+  function renderError(msg, opts) {
+    opts = opts || {};
+    render(`
+      <h1>No pudimos continuar</h1>
+      <p class="sub">${msg}</p>
+      ${opts.retry ? '<button class="retry-btn" onclick="location.reload()">Reintentar</button>' : ''}
+    `);
+  }
+
+  async function init() {
+    if (!studentId) {
+      renderError('Este enlace no tiene un código válido. Escanea tu QR nuevamente.');
+      return;
+    }
+    try {
+      const res = await fetch(`${APPS_SCRIPT_URL}?id=${encodeURIComponent(studentId)}`);
+      const data = await res.json();
+      if (!data.ok) {
+        renderError(data.error || 'Código no reconocido.');
+        return;
+      }
+      if (data.estado === 'Asignado') {
+        render(`
+          <h1>¡Hola ${escapeHtml(data.nombre)}!</h1>
+          <p class="status success">Ya estás registrado en ${escapeHtml(data.mesaAsignada)}.</p>
+        `);
+        return;
+      }
+      renderMesaGrid(data.nombre, data.numMesas || 25);
+    } catch (err) {
+      renderError('No hay conexión a internet o el servidor no responde.', { retry: true });
+    }
+  }
+
+  function renderMesaGrid(nombre, numMesas) {
+    let buttons = '';
+    for (let i = 1; i <= numMesas; i++) {
+      buttons += `<button class="mesa-btn" data-mesa="${i}" onclick="selectMesa(${i})">Mesa ${i}</button>`;
+    }
+    render(`
+      <h1>¡Hola ${escapeHtml(nombre)}!</h1>
+      <p class="sub">Selecciona la mesa en la que te encuentras:</p>
+      <div class="grid">${buttons}</div>
+      <div id="statusMsg"></div>
+    `);
+  }
+
+  async function selectMesa(mesaNum) {
+    document.querySelectorAll('.mesa-btn').forEach(b => b.disabled = true);
+    const statusEl = document.getElementById('statusMsg');
+    statusEl.innerHTML = '<div class="spinner" style="width:24px;height:24px;margin:16px auto;"></div>';
+    try {
+      const res = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ id: studentId, mesa: mesaNum })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        statusEl.innerHTML = `<p class="status success">¡Registrado en Mesa ${mesaNum}!</p>`;
+      } else {
+        statusEl.innerHTML = `<p class="status error">${escapeHtml(data.error || 'Error al registrar.')}</p>`;
+        if (!data.yaRegistrado) {
+          document.querySelectorAll('.mesa-btn').forEach(b => b.disabled = false);
+        }
+      }
+    } catch (err) {
+      statusEl.innerHTML = `<p class="status error">Sin conexión. Intenta de nuevo.</p>`;
+      document.querySelectorAll('.mesa-btn').forEach(b => b.disabled = false);
+    }
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str == null ? '' : String(str);
+    return div.innerHTML;
+  }
+
+  init();
+</script>
+
+</body>
+</html>
