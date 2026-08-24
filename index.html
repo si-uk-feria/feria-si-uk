@@ -70,11 +70,17 @@
   }
   .mesa-btn:active { transform: scale(0.94); }
   .mesa-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .mesa-btn.visited {
+    background: var(--navy);
+    color: var(--lime);
+    opacity: 1;
+  }
   .status {
     margin-top: 22px;
     font-size: 15px;
     font-weight: 600;
   }
+  .status.info { color: #5a6472; font-weight: 500; font-size: 13px; }
   .status.success { color: #1a7a3c; }
   .status.error { color: var(--coral); }
   .spinner {
@@ -142,36 +148,31 @@
         renderError(data.error || 'Código no reconocido.');
         return;
       }
-      if (data.estado === 'Asignado') {
-        render(`
-          <h1>¡Hola ${escapeHtml(data.nombre)}!</h1>
-          <p class="status success">Ya estás registrado en ${escapeHtml(data.mesaAsignada)}.</p>
-        `);
-        return;
-      }
-      renderMesaGrid(data.nombre, data.numMesas || 25);
+      renderMesaGrid(data.nombre, data.numMesas || 25, data.mesasVisitadas || []);
     } catch (err) {
       renderError('No hay conexión a internet o el servidor no responde.', { retry: true });
     }
   }
 
-  function renderMesaGrid(nombre, numMesas) {
+  function renderMesaGrid(nombre, numMesas, mesasVisitadas) {
     let buttons = '';
     for (let i = 1; i <= numMesas; i++) {
-      buttons += `<button class="mesa-btn" data-mesa="${i}" onclick="selectMesa(${i})">Mesa ${i}</button>`;
+      const visitada = mesasVisitadas.indexOf('Mesa_' + i) !== -1;
+      buttons += `<button class="mesa-btn${visitada ? ' visited' : ''}" data-mesa="${i}" ${visitada ? 'disabled' : ''} onclick="selectMesa(${i}, this)">${visitada ? '✓ ' : ''}Mesa ${i}</button>`;
     }
     render(`
       <h1>¡Hola ${escapeHtml(nombre)}!</h1>
-      <p class="sub">Selecciona la mesa en la que te encuentras:</p>
+      <p class="sub">Toca la mesa en la que te encuentras. Puedes registrar tu visita en varias mesas durante la feria.</p>
       <div class="grid">${buttons}</div>
-      <div id="statusMsg"></div>
+      <p class="status info" id="statusMsg"></p>
     `);
   }
 
-  async function selectMesa(mesaNum) {
+  async function selectMesa(mesaNum, btn) {
     document.querySelectorAll('.mesa-btn').forEach(b => b.disabled = true);
     const statusEl = document.getElementById('statusMsg');
-    statusEl.innerHTML = '<div class="spinner" style="width:24px;height:24px;margin:16px auto;"></div>';
+    statusEl.className = 'status info';
+    statusEl.textContent = 'Registrando...';
     try {
       const res = await fetch(APPS_SCRIPT_URL, {
         method: 'POST',
@@ -180,16 +181,23 @@
       });
       const data = await res.json();
       if (data.ok) {
-        statusEl.innerHTML = `<p class="status success">¡Registrado en Mesa ${mesaNum}!</p>`;
+        btn.classList.add('visited');
+        btn.textContent = '✓ Mesa ' + mesaNum;
+        statusEl.className = 'status success';
+        statusEl.textContent = `¡Registrado en Mesa ${mesaNum}!`;
       } else {
-        statusEl.innerHTML = `<p class="status error">${escapeHtml(data.error || 'Error al registrar.')}</p>`;
-        if (!data.yaRegistrado) {
-          document.querySelectorAll('.mesa-btn').forEach(b => b.disabled = false);
+        statusEl.className = 'status error';
+        statusEl.textContent = data.error || 'Error al registrar.';
+        if (data.yaRegistrado) {
+          btn.classList.add('visited');
+          btn.textContent = '✓ Mesa ' + mesaNum;
         }
       }
     } catch (err) {
-      statusEl.innerHTML = `<p class="status error">Sin conexión. Intenta de nuevo.</p>`;
-      document.querySelectorAll('.mesa-btn').forEach(b => b.disabled = false);
+      statusEl.className = 'status error';
+      statusEl.textContent = 'Sin conexión. Intenta de nuevo.';
+    } finally {
+      document.querySelectorAll('.mesa-btn:not(.visited)').forEach(b => b.disabled = false);
     }
   }
 
