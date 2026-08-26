@@ -89,6 +89,33 @@
   }
   .status.info { color: #5a6472; font-weight: 500; font-size: 13px; margin-top: 14px; }
   .status.error { color: var(--coral); font-weight: 600; font-size: 14px; margin-top: 14px; }
+  .manual {
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid #e2e6ea;
+    text-align: left;
+  }
+  .manual p { margin: 0 0 8px; font-size: 12.5px; color: #5a6472; }
+  .manual-row { display: flex; gap: 8px; }
+  .manual-row input {
+    flex: 1;
+    border: 1px solid #d7dbdf;
+    border-radius: 8px;
+    padding: 9px 10px;
+    font-size: 13px;
+    font-family: inherit;
+  }
+  .manual-row button {
+    background: var(--navy);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 9px 16px;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
 </style>
 </head>
 <body>
@@ -106,6 +133,13 @@
     <canvas id="canvas" style="display:none;"></canvas>
     <button id="startBtn" onclick="iniciarEscaneo()">Escanear QR</button>
     <p class="status info" id="statusMsg"></p>
+    <div class="manual" id="manualBox">
+      <p>¿La cámara no funciona? Ingresa el código manualmente (el texto que trae el QR o el ID del correo):</p>
+      <div class="manual-row">
+        <input type="text" id="manualInput" placeholder="ID del asistente" onkeydown="if(event.key==='Enter') activarManual()">
+        <button onclick="activarManual()">Activar</button>
+      </div>
+    </div>
   </div>
 </main>
 
@@ -122,21 +156,41 @@
   let scanning = false;
 
   async function iniciarEscaneo() {
-    statusMsg.className = 'status info';
-    statusMsg.textContent = '';
     quitarResultado();
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      statusMsg.className = 'status error';
+      statusMsg.textContent = 'Este navegador no soporta cámara. Usa el campo manual de abajo.';
+      return;
+    }
+    statusMsg.className = 'status info';
+    statusMsg.textContent = 'Solicitando permiso de cámara… si no aparece un aviso, revisa los permisos del sitio.';
     try {
       stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
       video.srcObject = stream;
       video.style.display = 'block';
       startBtn.style.display = 'none';
+      statusMsg.textContent = '';
       await video.play();
       scanning = true;
       requestAnimationFrame(tick);
     } catch (err) {
       statusMsg.className = 'status error';
-      statusMsg.textContent = 'No se pudo acceder a la cámara. Revisa los permisos del navegador.';
+      if (err.name === 'NotAllowedError' || err.name === 'SecurityError') {
+        statusMsg.textContent = 'Permiso de cámara denegado. Actívalo en los ajustes del sitio o usa el campo manual de abajo.';
+      } else if (err.name === 'NotFoundError' || err.name === 'OverconstrainedError') {
+        statusMsg.textContent = 'No se encontró una cámara trasera. Usa el campo manual de abajo.';
+      } else {
+        statusMsg.textContent = 'No se pudo acceder a la cámara (' + (err.name || err.message) + '). Usa el campo manual de abajo.';
+      }
     }
+  }
+
+  async function activarManual() {
+    const input = document.getElementById('manualInput');
+    const texto = input.value.trim();
+    if (!texto) return;
+    await procesarCodigo(texto);
+    input.value = '';
   }
 
   function detenerEscaneo() {
