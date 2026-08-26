@@ -51,6 +51,19 @@
   }
   h1 { font-size: 20px; margin: 0 0 6px; }
   p.sub { color: #5a6472; font-size: 14px; margin: 0 0 20px; line-height: 1.5; }
+  .info-panel {
+    background: var(--bg);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 18px;
+    text-align: left;
+    font-size: 13px;
+    color: #3a4452;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 4px 10px;
+  }
+  .info-panel .k { font-weight: 700; color: var(--navy); }
   .grid {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
@@ -75,6 +88,41 @@
     color: var(--lime);
     opacity: 1;
   }
+  .mesa-panel {
+    margin-top: 18px;
+    padding: 16px;
+    border-radius: 12px;
+    border: 1.5px solid var(--lime);
+    background: var(--bg);
+    text-align: left;
+  }
+  .mesa-panel .panel-title { font-weight: 700; margin: 0 0 8px; }
+  .mesa-panel textarea {
+    width: 100%;
+    min-height: 70px;
+    border-radius: 8px;
+    border: 1px solid #d7dbdf;
+    padding: 8px 10px;
+    font-family: inherit;
+    font-size: 13px;
+    resize: vertical;
+  }
+  .panel-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .panel-actions button {
+    border: none;
+    border-radius: 999px;
+    padding: 9px 18px;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .btn-cancel { background: #e2e6ea; color: var(--navy); }
+  .btn-confirm { background: var(--coral); color: #fff; }
   .status {
     margin-top: 22px;
     font-size: 15px;
@@ -125,6 +173,9 @@
   const params = new URLSearchParams(window.location.search);
   const studentId = params.get('id');
 
+  let mesaSeleccionada = null;
+  let btnSeleccionado = null;
+
   function render(html) { card.innerHTML = html; }
 
   function renderError(msg, opts) {
@@ -148,49 +199,84 @@
         renderError(data.error || 'Código no reconocido.');
         return;
       }
-      renderMesaGrid(data.nombre, data.numMesas || 25, data.mesasVisitadas || []);
+      renderMesaGrid(data);
     } catch (err) {
       renderError('No hay conexión a internet o el servidor no responde.', { retry: true });
     }
   }
 
-  function renderMesaGrid(nombre, numMesas, mesasVisitadas) {
+  function renderMesaGrid(data) {
+    const numMesas = data.numMesas || 25;
+    const mesasVisitadas = data.mesasVisitadas || [];
     let buttons = '';
     for (let i = 1; i <= numMesas; i++) {
       const visitada = mesasVisitadas.indexOf('Mesa_' + i) !== -1;
-      buttons += `<button class="mesa-btn${visitada ? ' visited' : ''}" data-mesa="${i}" ${visitada ? 'disabled' : ''} onclick="selectMesa(${i}, this)">${visitada ? '✓ ' : ''}Mesa ${i}</button>`;
+      buttons += `<button class="mesa-btn${visitada ? ' visited' : ''}" data-mesa="${i}" ${visitada ? 'disabled' : ''} onclick="abrirPanel(${i}, this)">${visitada ? '✓ ' : ''}Mesa ${i}</button>`;
     }
     render(`
-      <h1>¡Hola ${escapeHtml(nombre)}!</h1>
+      <h1>¡Hola ${escapeHtml(data.nombre)}!</h1>
       <p class="sub">Toca la mesa en la que te encuentras. Puedes registrar tu visita en varias mesas durante la feria.</p>
+      ${data.programa || data.ielts || data.financiacion ? `
+      <div class="info-panel">
+        ${data.programa ? `<span class="k">Programa</span><span>${escapeHtml(data.programa)}</span>` : ''}
+        ${data.ielts ? `<span class="k">IELTS</span><span>${escapeHtml(data.ielts)}</span>` : ''}
+        ${data.financiacion ? `<span class="k">Financiación</span><span>${escapeHtml(data.financiacion)}</span>` : ''}
+      </div>` : ''}
       <div class="grid">${buttons}</div>
+      <div class="mesa-panel" id="mesaPanel" style="display:none;">
+        <p class="panel-title" id="panelMesaTitle"></p>
+        <textarea id="comentarioInput" placeholder="Comentario sobre el candidato (opcional)"></textarea>
+        <div class="panel-actions">
+          <button class="btn-cancel" onclick="cerrarPanel()">Cancelar</button>
+          <button class="btn-confirm" onclick="confirmarVisita()">Guardar visita</button>
+        </div>
+      </div>
       <p class="status info" id="statusMsg"></p>
     `);
   }
 
-  async function selectMesa(mesaNum, btn) {
-    document.querySelectorAll('.mesa-btn').forEach(b => b.disabled = true);
+  function abrirPanel(mesaNum, btn) {
+    mesaSeleccionada = mesaNum;
+    btnSeleccionado = btn;
+    document.getElementById('panelMesaTitle').textContent = 'Mesa ' + mesaNum;
+    document.getElementById('comentarioInput').value = '';
+    document.getElementById('mesaPanel').style.display = 'block';
+    document.getElementById('mesaPanel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function cerrarPanel() {
+    document.getElementById('mesaPanel').style.display = 'none';
+    mesaSeleccionada = null;
+    btnSeleccionado = null;
+  }
+
+  async function confirmarVisita() {
+    if (!mesaSeleccionada || !btnSeleccionado) return;
+    const comentario = document.getElementById('comentarioInput').value.trim();
     const statusEl = document.getElementById('statusMsg');
+    document.querySelectorAll('.mesa-btn').forEach(b => b.disabled = true);
     statusEl.className = 'status info';
     statusEl.textContent = 'Registrando...';
     try {
       const res = await fetch(APPS_SCRIPT_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ id: studentId, mesa: mesaNum })
+        body: JSON.stringify({ id: studentId, mesa: mesaSeleccionada, comentario: comentario })
       });
       const data = await res.json();
       if (data.ok) {
-        btn.classList.add('visited');
-        btn.textContent = '✓ Mesa ' + mesaNum;
+        btnSeleccionado.classList.add('visited');
+        btnSeleccionado.textContent = '✓ Mesa ' + mesaSeleccionada;
         statusEl.className = 'status success';
-        statusEl.textContent = `¡Registrado en Mesa ${mesaNum}!`;
+        statusEl.textContent = `¡Registrado en Mesa ${mesaSeleccionada}!`;
+        cerrarPanel();
       } else {
         statusEl.className = 'status error';
         statusEl.textContent = data.error || 'Error al registrar.';
         if (data.yaRegistrado) {
-          btn.classList.add('visited');
-          btn.textContent = '✓ Mesa ' + mesaNum;
+          btnSeleccionado.classList.add('visited');
+          btnSeleccionado.textContent = '✓ Mesa ' + mesaSeleccionada;
+          cerrarPanel();
         }
       }
     } catch (err) {

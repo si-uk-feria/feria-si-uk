@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Feria SI-UK - Check-in de Entrada</title>
+<style>
+  :root {
+    --navy: #12253F;
+    --coral: #E63950;
+    --lime: #C9F27D;
+    --bg: #F6F7F5;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--navy);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    background: var(--navy);
+    padding: 18px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  header .dot { color: var(--coral); font-size: 22px; font-weight: 800; }
+  header .word { color: #fff; font-size: 19px; font-weight: 700; letter-spacing: 0.2px; }
+  main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 28px 16px 60px;
+    max-width: 480px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  .card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 24px 20px;
+    width: 100%;
+    box-shadow: 0 2px 12px rgba(18,37,63,0.08);
+    text-align: center;
+  }
+  h1 { font-size: 20px; margin: 0 0 6px; }
+  p.sub { color: #5a6472; font-size: 14px; margin: 0 0 20px; line-height: 1.5; }
+  #video {
+    width: 100%;
+    border-radius: 12px;
+    background: #000;
+    display: none;
+  }
+  #startBtn, .retry-btn {
+    background: var(--coral);
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    padding: 12px 26px;
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+  }
+  .result {
+    margin-top: 18px;
+    padding: 18px;
+    border-radius: 12px;
+  }
+  .result.success { background: rgba(201,242,125,0.35); }
+  .result.warning { background: rgba(230,57,80,0.10); }
+  .result h2 { font-size: 18px; margin: 0 0 4px; }
+  .result p { margin: 0; font-size: 13px; color: #3a4452; }
+  .scan-again {
+    margin-top: 14px;
+    background: var(--navy);
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    padding: 10px 20px;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .status.info { color: #5a6472; font-weight: 500; font-size: 13px; margin-top: 14px; }
+  .status.error { color: var(--coral); font-weight: 600; font-size: 14px; margin-top: 14px; }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="dot">✳</span>
+  <span class="word">SI-UK · Check-in de Entrada</span>
+</header>
+
+<main>
+  <div class="card" id="card">
+    <h1>Activar ingreso</h1>
+    <p class="sub">Escanea el código QR del asistente para activar su ingreso a la feria.</p>
+    <video id="video" playsinline muted></video>
+    <canvas id="canvas" style="display:none;"></canvas>
+    <button id="startBtn" onclick="iniciarEscaneo()">Escanear QR</button>
+    <p class="status info" id="statusMsg"></p>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script>
+  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwPPUmwk1lUIBIjdcv0Ka1NuQiuS7DYoCe0k526wtm4qlReinw0-RCLmo3RLkSMPNKK/exec';
+
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const startBtn = document.getElementById('startBtn');
+  const statusMsg = document.getElementById('statusMsg');
+  let stream = null;
+  let scanning = false;
+
+  async function iniciarEscaneo() {
+    statusMsg.className = 'status info';
+    statusMsg.textContent = '';
+    quitarResultado();
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      video.srcObject = stream;
+      video.style.display = 'block';
+      startBtn.style.display = 'none';
+      await video.play();
+      scanning = true;
+      requestAnimationFrame(tick);
+    } catch (err) {
+      statusMsg.className = 'status error';
+      statusMsg.textContent = 'No se pudo acceder a la cámara. Revisa los permisos del navegador.';
+    }
+  }
+
+  function detenerEscaneo() {
+    scanning = false;
+    if (stream) {
+      stream.getTracks().forEach(t => t.stop());
+      stream = null;
+    }
+    video.style.display = 'none';
+    startBtn.style.display = 'inline-block';
+    startBtn.textContent = 'Escanear siguiente';
+  }
+
+  function tick() {
+    if (!scanning) return;
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imageData.data, imageData.width, imageData.height);
+      if (code && code.data) {
+        detenerEscaneo();
+        procesarCodigo(code.data);
+        return;
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+
+  function extraerId(texto) {
+    try {
+      const url = new URL(texto);
+      return url.searchParams.get('id');
+    } catch (err) {
+      return texto.trim() || null;
+    }
+  }
+
+  async function procesarCodigo(texto) {
+    const id = extraerId(texto);
+    if (!id) {
+      statusMsg.className = 'status error';
+      statusMsg.textContent = 'No se reconoció un código válido en el QR.';
+      return;
+    }
+    statusMsg.className = 'status info';
+    statusMsg.textContent = 'Activando ingreso...';
+    try {
+      const res = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ id: id, action: 'checkin' })
+      });
+      const data = await res.json();
+      statusMsg.textContent = '';
+      if (data.ok) {
+        mostrarResultado('success', '✓ Ingreso activado', escapeHtml(data.nombre));
+      } else if (data.yaActivado) {
+        mostrarResultado('warning', 'Ya había ingresado', escapeHtml(data.nombre));
+      } else {
+        statusMsg.className = 'status error';
+        statusMsg.textContent = data.error || 'Código no reconocido.';
+      }
+    } catch (err) {
+      statusMsg.className = 'status error';
+      statusMsg.textContent = 'Sin conexión. Intenta de nuevo.';
+    }
+  }
+
+  function mostrarResultado(tipo, titulo, nombre) {
+    quitarResultado();
+    const div = document.createElement('div');
+    div.className = 'result ' + tipo;
+    div.id = 'resultBox';
+    div.innerHTML = `<h2>${titulo}</h2><p>${nombre}</p><button class="scan-again" onclick="reiniciar()">Escanear siguiente</button>`;
+    document.getElementById('card').appendChild(div);
+    startBtn.style.display = 'none';
+  }
+
+  function quitarResultado() {
+    const existing = document.getElementById('resultBox');
+    if (existing) existing.remove();
+  }
+
+  function reiniciar() {
+    quitarResultado();
+    startBtn.style.display = 'inline-block';
+    startBtn.textContent = 'Escanear QR';
+    statusMsg.textContent = '';
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str == null ? '' : String(str);
+    return div.innerHTML;
+  }
+</script>
+
+</body>
+</html>
