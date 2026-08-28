@@ -155,6 +155,41 @@
   let stream = null;
   let scanning = false;
 
+  // Reintenta automáticamente si el servidor está saturado (LockService.getScriptLock()
+  // ocupado por otros dispositivos activando ingreso al mismo tiempo) o si la respuesta no
+  // es JSON válido (página de error de Google bajo carga alta). Sin esto, un pico de gente
+  // escaneando a la entrada se ve como "Sin conexión" para el staff en la puerta, aunque el
+  // problema sea contención temporal del lock y no la red.
+  async function postConReintento(url, body, onProgreso) {
+    // 9 intentos con backoff creciente (~33s de espera total + tiempo de red) para cubrir
+    // picos de mucha gente activando ingreso al mismo tiempo (validado con prueba de carga).
+    const intentos = 9;
+    const esperasMs = [800, 1500, 2500, 4000, 5000, 5000, 5000, 5000];
+    let ultimoError = null;
+    for (let i = 0; i < intentos; i++) {
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(body)
+        });
+        const text = await res.text();
+        let data = null;
+        try { data = JSON.parse(text); } catch (e) { data = null; }
+
+        if (data && !data.busy) return data;
+        ultimoError = data ? new Error(data.error || 'Sistema ocupado.') : new Error('Respuesta inválida del servidor.');
+      } catch (err) {
+        ultimoError = err;
+      }
+      if (i < intentos - 1) {
+        if (onProgreso) onProgreso(i + 2, intentos);
+        await new Promise(r => setTimeout(r, esperasMs[i] + Math.random() * 300));
+      }
+    }
+    throw ultimoError;
+  }
+
   async function iniciarEscaneo() {
     quitarResultado();
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -240,12 +275,11 @@
     statusMsg.className = 'status info';
     statusMsg.textContent = 'Activando ingreso...';
     try {
-      const res = await fetch(APPS_SCRIPT_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ id: id, action: 'checkin' })
-      });
-      const data = await res.json();
+      const data = await postConReintento(
+        APPS_SCRIPT_URL,
+        { id: id, action: 'checkin' },
+        (intento, total) => { statusMsg.textContent = `Sistema ocupado, reintentando... (${intento}/${total})`; }
+      );
       statusMsg.textContent = '';
       if (data.ok) {
         mostrarResultado('success', '✓ Ingreso activado', escapeHtml(data.nombre));
@@ -257,7 +291,9 @@
       }
     } catch (err) {
       statusMsg.className = 'status error';
-      statusMsg.textContent = 'Sin conexión. Intenta de nuevo.';
+      statusMsg.textContent = (err instanceof TypeError)
+        ? 'Sin conexión. Intenta de nuevo.'
+        : ((err && err.message) || 'No se pudo activar el ingreso. Intenta de nuevo.');
     }
   }
 
