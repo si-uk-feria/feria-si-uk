@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Feria SI-UK - Registro de Mesa</title>
+<style>
+  :root {
+    --navy: #12253F;
+    --coral: #E63950;
+    --lime: #C9F27D;
+    --bg: #F6F7F5;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--navy);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    background: var(--navy);
+    padding: 18px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  header .dot { color: var(--coral); font-size: 22px; font-weight: 800; }
+  header .word { color: #fff; font-size: 19px; font-weight: 700; letter-spacing: 0.2px; }
+  main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 28px 16px 60px;
+    max-width: 560px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  .card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 24px 20px;
+    width: 100%;
+    box-shadow: 0 2px 12px rgba(18,37,63,0.08);
+    text-align: center;
+  }
+  h1 { font-size: 20px; margin: 0 0 6px; }
+  p.sub { color: #5a6472; font-size: 14px; margin: 0 0 20px; line-height: 1.5; }
+  .info-panel {
+    background: var(--bg);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 18px;
+    text-align: left;
+    font-size: 13px;
+    color: #3a4452;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 4px 10px;
+  }
+  .info-panel .k { font-weight: 700; color: var(--navy); }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+    margin-top: 8px;
+  }
+  .mesa-btn {
+    background: var(--lime);
+    color: var(--navy);
+    border: none;
+    border-radius: 10px;
+    padding: 14px 4px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    transition: transform 0.08s ease, opacity 0.15s ease;
+  }
+  .mesa-btn:active { transform: scale(0.94); }
+  .mesa-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .mesa-btn.visited {
+    background: var(--navy);
+    color: var(--lime);
+    opacity: 1;
+  }
+  .mesa-panel {
+    margin-top: 18px;
+    padding: 16px;
+    border-radius: 12px;
+    border: 1.5px solid var(--lime);
+    background: var(--bg);
+    text-align: left;
+  }
+  .mesa-panel .panel-title { font-weight: 700; margin: 0 0 8px; }
+  .mesa-panel textarea {
+    width: 100%;
+    min-height: 70px;
+    border-radius: 8px;
+    border: 1px solid #d7dbdf;
+    padding: 8px 10px;
+    font-family: inherit;
+    font-size: 13px;
+    resize: vertical;
+  }
+  .panel-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .panel-actions button {
+    border: none;
+    border-radius: 999px;
+    padding: 9px 18px;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .btn-cancel { background: #e2e6ea; color: var(--navy); }
+  .btn-confirm { background: var(--coral); color: #fff; }
+  .status {
+    margin-top: 22px;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .status.info { color: #5a6472; font-weight: 500; font-size: 13px; }
+  .status.success { color: #1a7a3c; }
+  .status.error { color: var(--coral); }
+  .spinner {
+    width: 34px; height: 34px;
+    border: 4px solid #e2e6ea;
+    border-top-color: var(--coral);
+    border-radius: 50%;
+    margin: 30px auto;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .retry-btn {
+    margin-top: 16px;
+    background: var(--coral);
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    padding: 10px 22px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<div style="background:#ffcc00;color:#12253F;text-align:center;font-weight:700;font-size:13px;padding:6px;">⚠ MODO PRUEBA — datos e IDs ficticios, no usar el día del evento</div>
+<header>
+  <span class="dot">✳</span>
+  <span class="word">SI-UK · Feria de Estudiantes [PRUEBA]</span>
+</header>
+
+<main>
+  <div class="card" id="card">
+    <div class="spinner" id="spinner"></div>
+  </div>
+</main>
+
+<script>
+  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyPnv8u44V_-mhWWg3P4G0Wci_hH-ORQ4ORuwh-0atLXAVtlOuJqC_qhZzquacOzKMurA/exec';
+
+  const card = document.getElementById('card');
+  const params = new URLSearchParams(window.location.search);
+  const studentId = params.get('id');
+
+  let mesaSeleccionada = null;
+  let btnSeleccionado = null;
+
+  function render(html) { card.innerHTML = html; }
+
+  // Reintenta automáticamente si el servidor está saturado (LockService.getScriptLock()
+  // ocupado por otras mesas escaneando al mismo tiempo) o si la respuesta no es JSON válido
+  // (página de error de Google bajo carga alta). Sin esto, un pico de escaneos simultáneos
+  // se ve como "Sin conexión" para quien está en la mesa, aunque el problema sea contención
+  // temporal del lock y no la red.
+  async function postConReintento(url, body, onProgreso) {
+    // 9 intentos con backoff creciente (~33s de espera total + tiempo de red) para cubrir
+    // picos de hasta ~30 mesas registrando al mismo tiempo (validado con prueba de carga).
+    const intentos = 9;
+    const esperasMs = [800, 1500, 2500, 4000, 5000, 5000, 5000, 5000];
+    let ultimoError = null;
+    for (let i = 0; i < intentos; i++) {
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(body)
+        });
+        const text = await res.text();
+        let data = null;
+        try { data = JSON.parse(text); } catch (e) { data = null; }
+
+        if (data && !data.busy) return data;
+        ultimoError = data ? new Error(data.error || 'Sistema ocupado.') : new Error('Respuesta inválida del servidor.');
+      } catch (err) {
+        ultimoError = err;
+      }
+      if (i < intentos - 1) {
+        if (onProgreso) onProgreso(i + 2, intentos);
+        await new Promise(r => setTimeout(r, esperasMs[i] + Math.random() * 300));
+      }
+    }
+    throw ultimoError;
+  }
+
+  function renderError(msg, opts) {
+    opts = opts || {};
+    render(`
+      <h1>No pudimos continuar</h1>
+      <p class="sub">${msg}</p>
+      ${opts.retry ? '<button class="retry-btn" onclick="location.reload()">Reintentar</button>' : ''}
+    );
+  }
+
+  async function init() {
+    if (!studentId) {
+      renderError('Este enlace no tiene un código válido. Escanea tu QR nuevamente.');
+      return;
+    }
+    try {
+      const res = await fetch(`${APPS_SCRIPT_URL}?id=${encodeURIComponent(studentId)}`);
+      const data = await res.json();
+      if (!data.ok) {
+        renderError(data.error || 'Código no reconocido.');
+        return;
+      }
+      renderMesaGrid(data);
+    } catch (err) {
+      renderError('No hay conexión a internet o el servidor no responde.', { retry: true });
+    }
+  }
+
+  function renderMesaGrid(data) {
+    const numMesas = data.numMesas || 25;
+    const mesasVisitadas = data.mesasVisitadas || [];
+    let buttons = '';
+    for (let i = 1; i <= numMesas; i++) {
+      const visitada = mesasVisitadas.indexOf('Mesa_' + i) !== -1;
+      buttons += `<button class="mesa-btn${visitada ? ' visited' : ''}" data-mesa="${i}" ${visitada ? 'disabled' : ''} onclick="abrirPanel(${i}, this)">${visitada ? '✓ ' : ''}Mesa ${i}</button>`;
+    }
+    render(`
+      <h1>¡Hola ${escapeHtml(data.nombre)}!</h1>
+      <p class="sub">Toca la mesa en la que te encuentras. Puedes registrar tu visita en varias mesas durante la feria.</p>
+      ${data.programa || data.ielts || data.financiacion ? `
+      <div class="info-panel">
+        ${data.programa ? `<span class="k">Programa</span><span>${escapeHtml(data.programa)}</span>` : ''}
+        ${data.ielts ? `<span class="k">IELTS</span><span>${escapeHtml(data.ielts)}</span>` : ''}
+        ${data.financiacion ? `<span class="k">Financiación</span><span>${escapeHtml(data.financiacion)}</span>` : ''}
+      </div>` : ''}
+      <div class="grid">${buttons}</div>
+      <div class="mesa-panel" id="mesaPanel" style="display:none;">
+        <p class="panel-title" id="panelMesaTitle"></p>
+        <textarea id="comentarioInput" placeholder="Comentario sobre el candidato (opcional)"></textarea>
+        <div class="panel-actions">
+          <button class="btn-cancel" onclick="cerrarPanel()">Cancelar</button>
+          <button class="btn-confirm" onclick="confirmarVisita()">Guardar visita</button>
+        </div>
+      </div>
+      <p class="status info" id="statusMsg"></p>
+    `);
+  }
+
+  function abrirPanel(mesaNum, btn) {
+    mesaSeleccionada = mesaNum;
+    btnSeleccionado = btn;
+    document.getElementById('panelMesaTitle').textContent = 'Mesa ' + mesaNum;
+    document.getElementById('comentarioInput').value = '';
+    document.getElementById('mesaPanel').style.display = 'block';
+    document.getElementById('mesaPanel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function cerrarPanel() {
+    document.getElementById('mesaPanel').style.display = 'none';
+    mesaSeleccionada = null;
+    btnSeleccionado = null;
+  }
+
+  async function confirmarVisita() {
+    if (!mesaSeleccionada || !btnSeleccionado) return;
+    const comentario = document.getElementById('comentarioInput').value.trim();
+    const statusEl = document.getElementById('statusMsg');
+    document.querySelectorAll('.mesa-btn').forEach(b => b.disabled = true);
+    statusEl.className = 'status info';
+    statusEl.textContent = 'Registrando...';
+    try {
+      const data = await postConReintento(
+        APPS_SCRIPT_URL,
+        { id: studentId, mesa: mesaSeleccionada, comentario: comentario },
+        (intento, total) => { statusEl.textContent = `Sistema ocupado, reintentando... (${intento}/${total})`; }
+      );
+      if (data.ok) {
+        btnSeleccionado.classList.add('visited');
+        btnSeleccionado.textContent = '✓ Mesa ' + mesaSeleccionada;
+        statusEl.className = 'status success';
+        statusEl.textContent = `¡Registrado en Mesa ${mesaSeleccionada}!`;
+        cerrarPanel();
+      } else {
+        statusEl.className = 'status error';
+        statusEl.textContent = data.error || 'Error al registrar.';
+        if (data.yaRegistrado) {
+          btnSeleccionado.classList.add('visited');
+          btnSeleccionado.textContent = '✓ Mesa ' + mesaSeleccionada;
+          cerrarPanel();
+        }
+      }
+    } catch (err) {
+      statusEl.className = 'status error';
+      statusEl.textContent = (err instanceof TypeError)
+        ? 'Sin conexión. Intenta de nuevo.'
+        : ((err && err.message) || 'No se pudo registrar. Intenta de nuevo.');
+    } finally {
+      document.querySelectorAll('.mesa-btn:not(.visited)').forEach(b => b.disabled = false);
+    }
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str == null ? '' : String(str);
+    return div.innerHTML;
+  }
+
+  init();
+</script>
+
+</body>
+</html>
