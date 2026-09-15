@@ -249,8 +249,8 @@
       buttons += `<button class="mesa-btn${visitada ? ' visited' : ''}" data-mesa="${i}" ${visitada ? 'disabled' : ''} onclick="abrirPanel(${i}, this)">${visitada ? '✓ ' : ''}Mesa ${i}</button>`;
     }
     render(`
-      <h1>¡Hola ${escapeHtml(data.nombre)}!</h1>
-      <p class="sub">Toca la mesa en la que te encuentras. Puedes registrar tu visita en varias mesas durante la feria.</p>
+      <h1>${escapeHtml(data.nombre)}</h1>
+      <p class="sub">Toca la mesa en la que te encuentras.<br>Tap the table you're at.</p>
       ${data.programa || data.ielts || data.financiacion ? `
       <div class="info-panel">
         ${data.programa ? `<span class="k">Programa</span><span>${escapeHtml(data.programa)}</span>` : ''}
