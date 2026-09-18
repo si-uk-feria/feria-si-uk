@@ -251,10 +251,10 @@
     render(`
       <h1>${escapeHtml(data.nombre)}</h1>
       <p class="sub">Toca la mesa en la que te encuentras.<br>Tap the table you're at.</p>
-      ${data.programa || data.ielts || data.financiacion ? `
+      ${data.programa || data.tipoEstudio || data.financiacion ? `
       <div class="info-panel">
         ${data.programa ? `<span class="k">Programa</span><span>${escapeHtml(data.programa)}</span>` : ''}
-        ${data.ielts ? `<span class="k">IELTS</span><span>${escapeHtml(data.ielts)}</span>` : ''}
+        ${data.tipoEstudio ? `<span class="k">Tipo de estudio</span><span>${escapeHtml(data.tipoEstudio)}</span>` : ''}
         ${data.financiacion ? `<span class="k">Financiación</span><span>${escapeHtml(data.financiacion)}</span>` : ''}
       </div>` : ''}
       <div class="grid">${buttons}</div>
