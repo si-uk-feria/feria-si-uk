@@ -298,11 +298,11 @@
     const cont = document.getElementById('chartDias');
     cont.innerHTML = dias.map((d) => {
       const count = porDia[d];
-      const alturaPct = Math.round((count / max) * 100);
+      const alturaPx = Math.max(Math.round((count / max) * 90), 6);
       const [, mm, dd] = d.split('-');
       return `<div class="bar-day-col">
         <div class="bar-day-count">${count}</div>
-        <div class="bar-day-fill" style="height:${Math.max(alturaPct, 6)}%"></div>
+        <div class="bar-day-fill" style="height:${alturaPx}px"></div>
         <div class="bar-day-label">${dd}/${mm}</div>
       </div>`;
     }).join('') || '<p class="hint">Sin datos todavía.</p>';
