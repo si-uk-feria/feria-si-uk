@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Study Destinations Fair - Panel de Leads</title>
+<style>
+  :root {
+    --navy: #12253F;
+    --coral: #E63950;
+    --lime: #C9F27D;
+    --bg: #F6F7F5;
+    --ink-2: #5a6472;
+    --ink-3: #8a94a3;
+    --line: #e7e9ec;
+    /* paleta categorica validada (dataviz skill), orden fijo por entidad */
+    --s1: #2a78d6; /* blue */
+    --s2: #eb6834; /* orange */
+    --s3: #1baf7a; /* aqua */
+    --s4: #eda100; /* yellow */
+    --s5: #e87ba4; /* magenta */
+    --seq-100: #cde2fb;
+    --seq-250: #86b6ef;
+    --seq-400: #3987e5;
+    --seq-550: #1c5cab;
+    --seq-700: #0d366b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--navy);
+    min-height: 100vh;
+  }
+  header {
+    background: var(--navy);
+    padding: 20px 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    text-align: center;
+  }
+  header .brand { display: flex; align-items: center; gap: 8px; }
+  header .dot { color: var(--coral); font-size: 22px; font-weight: 800; }
+  header .word { color: #fff; font-size: 19px; font-weight: 700; letter-spacing: 0.2px; }
+  header .sub { color: #c7d0dd; font-size: 13px; }
+  .refresh-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  button#btnActualizar {
+    background: var(--coral);
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    padding: 10px 22px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity .15s;
+  }
+  button#btnActualizar:active { opacity: .8; }
+  button#btnActualizar:disabled { opacity: .55; cursor: default; }
+  #estado { color: #c7d0dd; font-size: 12px; }
+  main {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 22px 16px 60px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 2px 12px rgba(18,37,63,0.07);
+  }
+  .card h2 {
+    font-size: 15px;
+    margin: 0 0 4px;
+    color: var(--navy);
+  }
+  .card p.hint {
+    font-size: 12px;
+    color: var(--ink-3);
+    margin: 0 0 16px;
+  }
+  .hero {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .hero .num {
+    font-size: 44px;
+    font-weight: 800;
+    color: var(--navy);
+    font-variant-numeric: tabular-nums;
+  }
+  .hero .label { font-size: 14px; color: var(--ink-2); }
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+  @media (max-width: 620px) {
+    .grid-2 { grid-template-columns: 1fr; }
+  }
+  /* barras por dia */
+  .bars-day {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    height: 140px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+  .bar-day-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    min-width: 34px;
+    flex: 1 0 auto;
+  }
+  .bar-day-fill {
+    width: 100%;
+    max-width: 26px;
+    background: var(--s1);
+    border-radius: 4px 4px 2px 2px;
+    position: relative;
+  }
+  .bar-day-count {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--navy);
+    font-variant-numeric: tabular-nums;
+  }
+  .bar-day-label {
+    font-size: 10px;
+    color: var(--ink-3);
+    white-space: nowrap;
+    transform: rotate(-40deg);
+    transform-origin: top right;
+    margin-top: 4px;
+  }
+  /* barras horizontales (tipo, anio, programa) */
+  .hbar-row {
+    display: grid;
+    grid-template-columns: 130px 1fr 34px;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .hbar-row:last-child { margin-bottom: 0; }
+  .hbar-label {
+    font-size: 12.5px;
+    color: var(--navy);
+    text-align: right;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .hbar-track {
+    background: var(--line);
+    border-radius: 4px;
+    height: 14px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hbar-fill {
+    height: 100%;
+    border-radius: 4px;
+    min-width: 4px;
+  }
+  .hbar-value {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 14px;
+    font-size: 11.5px;
+    color: var(--ink-2);
+  }
+  .legend span.sw {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    border-radius: 2px;
+    margin-right: 5px;
+  }
+  #errorBox {
+    display: none;
+    background: #fdeceb;
+    color: #9c2b2b;
+    border-radius: 12px;
+    padding: 14px 16px;
+    font-size: 13px;
+  }
+  #loadingBox {
+    text-align: center;
+    color: var(--ink-2);
+    font-size: 13px;
+    padding: 40px 0;
+  }
+  #contenido { display: none; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <span class="dot">&#10035;</span>
+    <span class="word">Study Destinations Fair</span>
+  </div>
+  <div class="sub">Panel de leads registrados</div>
+  <div class="refresh-row">
+    <button id="btnActualizar">Actualizar</button>
+    <span id="estado">Cargando...</span>
+  </div>
+</header>
+
+<main>
+  <div id="loadingBox">Cargando datos...</div>
+  <div id="errorBox"></div>
+
+  <div id="contenido">
+    <div class="card hero">
+      <div class="num" id="totalLeads">0</div>
+      <div class="label">leads registrados en total<br>(Google Form + importados de Meta)</div>
+    </div>
+
+    <div class="card">
+      <h2>Leads nuevos por día</h2>
+      <p class="hint">Cuenta cada registro por su fecha de alta en el Sheet (incluye corridas de Meta y registros directos del formulario).</p>
+      <div class="bars-day" id="chartDias"></div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h2>Tipo de estudio</h2>
+        <p class="hint">Distribución de todos los leads con este dato.</p>
+        <div id="chartTipo"></div>
+      </div>
+      <div class="card">
+        <h2>Año de inicio favorito</h2>
+        <p class="hint">Ordenado cronológicamente, de más próximo a más lejano.</p>
+        <div id="chartAnio"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Programas de interés más mencionados</h2>
+      <p class="hint">Solo lo llena el formulario "General" de Meta y el campo de programa del Google Form; el resto de leads no lo pregunta.</p>
+      <div id="chartProgramas"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwPPUmwk1lUIBIjdcv0Ka1NuQiuS7DYoCe0k526wtm4qlReinw0-RCLmo3RLkSMPNKK/exec';
+
+  const CATEGORICAL = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#4a3aa7', '#e34948'];
+  const SEQ_STEPS = ['#cde2fb', '#86b6ef', '#3987e5', '#1c5cab', '#0d366b'];
+
+  const TIPO_ORDEN = ['Pregrado', 'Posgrado / Maestría', 'Foundation / Pathway', 'Doctorado'];
+  const MESES_TRIMESTRE = { 'Ene/Feb/Mar': 1, 'Abr/May/Jun': 2, 'Jul/Ago/Sep': 3, 'Oct/Nov/Dic': 4 };
+
+  function ordenAnio(a, b) {
+    const parse = (s) => {
+      const m = s.match(/^(.*?) (\d{4})$/);
+      if (!m) return [9999, 9];
+      const trimestre = MESES_TRIMESTRE[m[1]] || 9;
+      return [parseInt(m[2], 10), trimestre];
+    };
+    const [ay, at] = parse(a);
+    const [by, bt] = parse(b);
+    return ay - by || at - bt;
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  function renderDias(porDia) {
+    const dias = Object.keys(porDia).sort();
+    const max = Math.max(1, ...dias.map((d) => porDia[d]));
+    const cont = document.getElementById('chartDias');
+    cont.innerHTML = dias.map((d) => {
+      const count = porDia[d];
+      const alturaPct = Math.round((count / max) * 100);
+      const [, mm, dd] = d.split('-');
+      return `<div class="bar-day-col">
+        <div class="bar-day-count">${count}</div>
+        <div class="bar-day-fill" style="height:${Math.max(alturaPct, 6)}%"></div>
+        <div class="bar-day-label">${dd}/${mm}</div>
+      </div>`;
+    }).join('') || '<p class="hint">Sin datos todavía.</p>';
+  }
+
+  function renderHBar(contenedorId, entradas, colorFn, legendEntidad) {
+    const cont = document.getElementById(contenedorId);
+    if (!entradas.length) {
+      cont.innerHTML = '<p class="hint">Sin datos todavía.</p>';
+      return;
+    }
+    const max = Math.max(...entradas.map((e) => e[1]));
+    cont.innerHTML = entradas.map(([label, count], i) => {
+      const pct = Math.max(Math.round((count / max) * 100), 4);
+      const color = colorFn(label, i);
+      return `<div class="hbar-row">
+        <div class="hbar-label" title="${escapeHtml(label)}">${escapeHtml(label)}</div>
+        <div class="hbar-track"><div class="hbar-fill" style="width:${pct}%;background:${color}"></div></div>
+        <div class="hbar-value">${count}</div>
+      </div>`;
+    }).join('');
+    if (legendEntidad) {
+      const leg = document.getElementById(contenedorId).parentElement;
+      let legendEl = leg.querySelector('.legend');
+      if (!legendEl) {
+        legendEl = document.createElement('div');
+        legendEl.className = 'legend';
+        leg.appendChild(legendEl);
+      }
+      legendEl.innerHTML = entradas.map(([label], i) => {
+        const color = colorFn(label, i);
+        return `<span><span class="sw" style="background:${color}"></span>${escapeHtml(label)}</span>`;
+      }).join('');
+    }
+  }
+
+  function colorTipo(label) {
+    const idx = TIPO_ORDEN.indexOf(label);
+    return idx >= 0 ? CATEGORICAL[idx] : CATEGORICAL[TIPO_ORDEN.length];
+  }
+
+  function render(data) {
+    document.getElementById('totalLeads').textContent = data.total;
+
+    renderDias(data.porDia || {});
+
+    const tipoEntradas = Object.entries(data.porTipoEstudio || {})
+      .sort((a, b) => (TIPO_ORDEN.indexOf(a[0]) + 1 || 99) - (TIPO_ORDEN.indexOf(b[0]) + 1 || 99));
+    renderHBar('chartTipo', tipoEntradas, colorTipo, true);
+
+    const anioEntradas = Object.entries(data.porAnio || {}).sort((a, b) => ordenAnio(a[0], b[0]));
+    renderHBar('chartAnio', anioEntradas, (_, i) => SEQ_STEPS[Math.min(i, SEQ_STEPS.length - 1)], false);
+
+    let progEntradas = Object.entries(data.porPrograma || {}).sort((a, b) => b[1] - a[1]);
+    if (progEntradas.length > 8) {
+      const resto = progEntradas.slice(8).reduce((sum, [, c]) => sum + c, 0);
+      progEntradas = progEntradas.slice(0, 8);
+      if (resto > 0) progEntradas.push(['Otros', resto]);
+    }
+    renderHBar('chartProgramas', progEntradas, () => '#2a78d6', false);
+
+    document.getElementById('loadingBox').style.display = 'none';
+    document.getElementById('errorBox').style.display = 'none';
+    document.getElementById('contenido').style.display = 'flex';
+    document.getElementById('contenido').style.flexDirection = 'column';
+    document.getElementById('contenido').style.gap = '18px';
+
+    const ahora = new Date(data.generadoEn);
+    document.getElementById('estado').textContent = 'Actualizado ' + ahora.toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' });
+  }
+
+  async function cargarDatos() {
+    const btn = document.getElementById('btnActualizar');
+    btn.disabled = true;
+    document.getElementById('estado').textContent = 'Actualizando...';
+    document.getElementById('errorBox').style.display = 'none';
+    try {
+      const res = await fetch(`${APPS_SCRIPT_URL}?action=metrics`);
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || 'Respuesta inválida del servidor.');
+      render(data);
+    } catch (err) {
+      document.getElementById('loadingBox').style.display = 'none';
+      document.getElementById('contenido').style.display = 'none';
+      const box = document.getElementById('errorBox');
+      box.style.display = 'block';
+      box.textContent = 'No se pudo cargar el panel: ' + err.message + '. Intenta actualizar de nuevo en unos segundos.';
+      document.getElementById('estado').textContent = 'Error al actualizar';
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  document.getElementById('btnActualizar').addEventListener('click', cargarDatos);
+  cargarDatos();
+</script>
+</body>
+</html>
